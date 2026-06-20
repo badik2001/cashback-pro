@@ -63,11 +63,16 @@ function ThemedToaster() {
 }
 
 function App() {
+  // Keep the router's basename in sync with vite.config.ts's `base` —
+  // import.meta.env.BASE_URL is set by Vite at build time, so this never
+  // drifts out of sync even if the deploy path changes later.
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter basename={basename}>
             <div className="ambient-bg">
               <div className="ambient-blob ambient-blob--primary" />
               <div className="ambient-blob ambient-blob--secondary" />

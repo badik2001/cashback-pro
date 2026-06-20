@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+# "Deploy from a branch" in repo Settings → Pages just serves whatever files
+# are sitting in the branch — for a Vite app that's the raw, uncompiled
+# index.html/.tsx, which the browser can't run (hence the blank page).
+# This workflow actually builds the app and publishes the compiled
+# dist/ output instead.
+#
+# One-time setup: Settings → Pages → Build and deployment → Source →
+# "GitHub Actions" (instead of "Deploy from a branch").
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      # GitHub Pages has no server-side routing, so a hard refresh on
+      # something like /cashback-pro/cards would 404. Serving the same
+      # index.html as the 404 page lets the client-side router take
+      # over and render the right screen.
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

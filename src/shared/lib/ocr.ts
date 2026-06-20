@@ -124,14 +124,42 @@ async function preprocessImage(file: File | Blob): Promise<HTMLCanvasElement> {
 
 const NOISE_NAMES = new Set(["", "%", "-", "—", "•"]);
 
+/**
+ * The row icons in bank-app screenshots (circular category glyphs,
+ * checkboxes, info "i" badges, ® / © marks, etc.) sit right next to the
+ * real text and get OCR'd as garbage tokens glued to the start/end of the
+ * line — e.g. "О Деливери Фе О" or "№ А Активный отдых ® О" where the
+ * actual category is in the middle. A token is almost certainly such
+ * garbage when it's either pure punctuation/symbols (no letters or
+ * digits at all) or very short (1-2 letters) — real category words are
+ * never that short on their own. We strip those iteratively from both
+ * ends until only the real name remains, but always leave at least one
+ * token so a genuinely short name still survives.
+ */
+function isNoiseToken(token: string): boolean {
+  const hasAlnum = /[\p{L}\p{N}]/u.test(token);
+  if (!hasAlnum) return true;
+  const lettersOnly = token.replace(/[^\p{L}\p{N}]/gu, "");
+  return lettersOnly.length <= 2;
+}
+
 function cleanName(raw: string): string {
-  let name = raw
+  const tokens = raw
     .replace(/[•·●○◦]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  while (tokens.length > 1 && isNoiseToken(tokens[0])) tokens.shift();
+  while (tokens.length > 1 && isNoiseToken(tokens[tokens.length - 1])) tokens.pop();
+
+  let name = tokens
+    .join(" ")
     .replace(/[«»"“”]/g, "")
-    .replace(/[-–—:;,.]+$/g, "")
-    .replace(/^[-–—:;,.]+/g, "")
+    .replace(/^[^\p{L}\p{N}]+/u, "")
+    .replace(/[^\p{L}\p{N}]+$/u, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+
   if (name.length > 0) name = name[0].toUpperCase() + name.slice(1);
   return name;
 }

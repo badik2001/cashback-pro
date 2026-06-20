@@ -123,7 +123,7 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-          <div className="flex flex-col gap-3 pb-2 md:flex-wrap" style={{ minWidth: "max-content" }} role="list">
+          <div className="flex gap-3 pb-2 md:flex-wrap" style={{ minWidth: "max-content" }} role="list">
             {filtered.map((cat) => (
               <div
                 key={cat.id}
