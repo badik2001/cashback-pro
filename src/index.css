@@ -1,68 +1,142 @@
 @import "tailwindcss";
 
+/* =========================================================
+   CashBack Pro — iOS 26 "Liquid Glass" design system
+   ========================================================= */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    color-scheme: light;
+
+    /* ---- Neutrals ---- */
+    --background: 280 20% 97%;
+    --foreground: 270 15% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221 83% 53%;
-    --radius: 0.75rem;
+    --card-foreground: 270 15% 11%;
+    --muted: 270 12% 93%;
+    --muted-foreground: 270 8% 45%;
+    --border: 270 14% 88%;
+    --input: 270 14% 90%;
+
+    /* ---- Brand: Primary (magenta/fuchsia) ---- */
+    --primary: 305 50% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 305 65% 90%;
+    --primary-dark: 305 70% 19%;
+
+    /* ---- Brand: Secondary (olive/lime) ---- */
+    --secondary: 71 50% 48%;
+    --secondary-foreground: 90 45% 13%;
+    --secondary-light: 71 60% 90%;
+    --secondary-dark: 72 65% 21%;
+
+    --accent: 305 45% 95%;
+    --accent-foreground: 305 55% 30%;
+
+    --destructive: 4 86% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+
+    --ring: 305 50% 42%;
+    --radius: 1.1rem;
+
+    /* ---- Glass tokens (light) ---- */
+    --glass-bg: rgba(255, 255, 255, 0.55);
+    --glass-bg-strong: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --glass-highlight: rgba(255, 255, 255, 0.85);
+    --glass-shadow: 0 8px 30px rgba(86, 8, 75, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --glass-shadow-strong: 0 16px 48px rgba(86, 8, 75, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   }
+
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    color-scheme: dark;
+
+    --background: 268 28% 7%;
+    --foreground: 0 0% 96%;
+    --card: 268 22% 10%;
+    --card-foreground: 0 0% 96%;
+    --muted: 268 16% 16%;
+    --muted-foreground: 268 8% 66%;
+    --border: 268 16% 22%;
+    --input: 268 16% 19%;
+
+    --primary: 305 62% 64%;
+    --primary-foreground: 304 70% 12%;
+    --primary-light: 305 35% 20%;
+    --primary-dark: 305 80% 85%;
+
+    --secondary: 71 55% 56%;
+    --secondary-foreground: 90 45% 11%;
+    --secondary-light: 71 30% 18%;
+    --secondary-dark: 72 70% 80%;
+
+    --accent: 305 30% 18%;
+    --accent-foreground: 305 65% 80%;
+
+    --destructive: 4 85% 64%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 58%;
+
+    --ring: 305 62% 64%;
+
+    /* ---- Glass tokens (dark) ---- */
+    --glass-bg: rgba(255, 255, 255, 0.06);
+    --glass-bg-strong: rgba(255, 255, 255, 0.10);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.18);
+    --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --glass-shadow-strong: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
+
   * { box-sizing: border-box; }
+
+  html {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+      "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    letter-spacing: -0.01em;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
   }
 }
 
 /* Custom scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.35); border-radius: 9999px; }
 
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
+
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-light: hsl(var(--primary-light));
+  --color-primary-dark: hsl(var(--primary-dark));
+
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-light: hsl(var(--secondary-light));
+  --color-secondary-dark: hsl(var(--secondary-dark));
+
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-warning: hsl(var(--warning));
+
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
   --color-accent: hsl(var(--accent));
@@ -70,7 +144,161 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+}
+
+/* =========================================================
+   Liquid Glass surfaces
+   ========================================================= */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-strong {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(34px) saturate(190%);
+  -webkit-backdrop-filter: blur(34px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong);
+}
+
+.glass-pill {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  border-radius: 9999px;
+  box-shadow: var(--glass-shadow-strong);
+}
+
+/* Diagonal sheen highlight, layered on top of a glass surface */
+.glass-sheen {
+  position: relative;
+  isolation: isolate;
+}
+.glass-sheen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(135deg, var(--glass-highlight) 0%, transparent 45%);
+  mix-blend-mode: overlay;
+}
+.glass-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(0, 0, 0, 0.04);
+}
+.dark .glass-sheen::after {
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08), inset 0 -1px 1px rgba(0, 0, 0, 0.3);
+}
+
+/* =========================================================
+   Ambient background blobs
+   ========================================================= */
+
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: hsl(var(--background));
+}
+
+.ambient-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.dark .ambient-blob { opacity: 0.35; }
+
+.ambient-blob--primary {
+  width: 60vmax;
+  height: 60vmax;
+  top: -20vmax;
+  left: -15vmax;
+  background: radial-gradient(circle at 30% 30%, #C36ABB 0%, #86177D 55%, transparent 100%);
+  animation: float-a 22s ease-in-out infinite;
+}
+
+.ambient-blob--secondary {
+  width: 50vmax;
+  height: 50vmax;
+  bottom: -18vmax;
+  right: -12vmax;
+  background: radial-gradient(circle at 60% 60%, #CBDF79 0%, #A0BE21 55%, transparent 100%);
+  animation: float-b 26s ease-in-out infinite;
+}
+
+.ambient-blob--tertiary {
+  width: 38vmax;
+  height: 38vmax;
+  top: 35vh;
+  left: 55vw;
+  background: radial-gradient(circle at 50% 50%, #C34AB8 0%, #652660 60%, transparent 100%);
+  animation: float-c 30s ease-in-out infinite;
+  opacity: 0.35;
+}
+.dark .ambient-blob--tertiary { opacity: 0.22; }
+
+@keyframes float-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4vmax, 6vmax) scale(1.08); }
+}
+@keyframes float-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-5vmax, -4vmax) scale(1.1); }
+}
+@keyframes float-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-3vmax, 4vmax) scale(0.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob { animation: none !important; }
+}
+
+/* =========================================================
+   Form elements — ensure native controls never go
+   "white on white" in dark mode
+   ========================================================= */
+
+select,
+input,
+textarea {
+  color-scheme: inherit;
+  background-color: transparent;
+}
+
+select option {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+/* =========================================================
+   Small utility helpers
+   ========================================================= */
+
+.tap-highlight-none {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }

@@ -1,11 +1,12 @@
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useApp } from "../../shared/hooks/useApp";
-import { Moon, Sun, Globe, MessageCircle, LogOut, ChevronRight } from "lucide-react";
+import { Moon, Sun, MessageCircle, LogOut, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import SegmentedControl from "../../shared/components/SegmentedControl";
 
 export default function SettingsPage() {
   const { signOut, user } = useAuth();
-  const { t, theme, toggleTheme, lang, setLang } = useApp();
+  const { t, theme, setTheme, lang, setLang } = useApp();
 
   const handleLogout = async () => {
     await signOut();
@@ -14,11 +15,11 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t("settings.title")}</h1>
+      <h1 className="text-2xl font-semibold text-foreground tracking-tight mb-6">{t("settings.title")}</h1>
 
       {/* Profile */}
-      <div className="bg-card border border-border rounded-2xl p-4 mb-4 flex items-center gap-4">
-        <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0">
+      <div className="glass rounded-3xl p-4 mb-4 flex items-center gap-4">
+        <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-full flex items-center justify-center text-white font-semibold text-lg shrink-0 shadow-md">
           {(user?.user_metadata?.username || user?.email || "?")[0].toUpperCase()}
         </div>
         <div className="min-w-0">
@@ -28,67 +29,39 @@ export default function SettingsPage() {
       </div>
 
       {/* Theme */}
-      <div className="bg-card border border-border rounded-2xl mb-4 overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.theme")}</p>
-        </div>
-        <button
-          onClick={toggleTheme}
-          className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent transition"
-        >
-          <div className="flex items-center gap-3">
-            {theme === "dark" ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-yellow-500" />}
-            <span className="text-sm text-foreground font-medium">
-              {theme === "dark" ? t("settings.dark") : t("settings.light")}
-            </span>
-          </div>
-          <div className={`w-11 h-6 rounded-full transition-colors ${theme === "dark" ? "bg-blue-600" : "bg-muted"} relative`}>
-            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${theme === "dark" ? "translate-x-5.5" : "translate-x-0.5"}`} />
-          </div>
-        </button>
+      <div className="glass rounded-3xl p-4 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t("settings.theme")}</p>
+        <SegmentedControl
+          value={theme}
+          onChange={(v) => setTheme(v as "light" | "dark")}
+          options={[
+            { value: "light", label: t("settings.light"), icon: <Sun className="w-3.5 h-3.5" /> },
+            { value: "dark", label: t("settings.dark"), icon: <Moon className="w-3.5 h-3.5" /> },
+          ]}
+        />
       </div>
 
       {/* Language */}
-      <div className="bg-card border border-border rounded-2xl mb-4 overflow-hidden">
-        <div className="px-4 py-3 border-b border-border">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.language")}</p>
-        </div>
-        <button
-          onClick={() => setLang("ru")}
-          className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent transition"
-        >
-          <div className="flex items-center gap-3">
-            <Globe className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">Русский</span>
-          </div>
-          {lang === "ru" && <div className="w-2 h-2 bg-blue-600 rounded-full" />}
-        </button>
-        <div className="h-px bg-border mx-4" />
-        <button
-          onClick={() => setLang("en")}
-          className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent transition"
-        >
-          <div className="flex items-center gap-3">
-            <Globe className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-foreground">English</span>
-          </div>
-          {lang === "en" && <div className="w-2 h-2 bg-blue-600 rounded-full" />}
-        </button>
+      <div className="glass rounded-3xl p-4 mb-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{t("settings.language")}</p>
+        <SegmentedControl
+          value={lang}
+          onChange={(v) => setLang(v as "ru" | "en")}
+          options={[
+            { value: "ru", label: "Русский" },
+            { value: "en", label: "English" },
+          ]}
+        />
       </div>
 
       {/* Support */}
-      <div className="bg-card border border-border rounded-2xl mb-4 overflow-hidden">
+      <div className="glass rounded-3xl mb-4 overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("settings.support")}</p>
         </div>
-        <a
-          href="https://t.me/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-accent transition"
-        >
+        <a href="https://t.me/" target="_blank" rel="noopener noreferrer" className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-white/30 dark:hover:bg-white/10 transition">
           <div className="flex items-center gap-3">
-            <MessageCircle className="w-4 h-4 text-blue-400" />
+            <MessageCircle className="w-4 h-4 text-primary" />
             <span className="text-sm text-foreground">{t("settings.telegram")}</span>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -96,10 +69,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Logout */}
-      <button
-        onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-3.5 bg-card border border-border rounded-2xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-      >
+      <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3.5 glass rounded-3xl text-destructive hover:bg-destructive/10 transition">
         <LogOut className="w-4 h-4" />
         <span className="text-sm font-medium">{t("settings.logout")}</span>
       </button>

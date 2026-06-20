@@ -15,74 +15,82 @@ export default function Layout() {
   ];
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar (desktop) */}
-      <aside className="hidden md:flex flex-col w-60 border-r border-border bg-card shrink-0">
-        <div className="p-5 border-b border-border flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Logo className="w-4 h-4 text-white" />
+    <div className="flex h-screen overflow-hidden">
+      {/* Sidebar (desktop) — floating glass panel */}
+      <aside className="hidden md:flex flex-col w-64 shrink-0 p-4">
+        <div className="glass glass-sheen rounded-[1.75rem] flex flex-col h-full overflow-hidden">
+          <div className="p-5 flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-primary to-primary-dark rounded-2xl flex items-center justify-center shadow-lg shadow-primary/30">
+              <Logo className="w-4.5 h-4.5 text-white" />
+            </div>
+            <span className="font-semibold text-foreground tracking-tight">CashBack Pro</span>
           </div>
-          <span className="font-bold text-foreground">CashBack Pro</span>
-        </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                }`
-              }
+          <nav className="flex-1 px-3 space-y-1.5">
+            {navItems.map(({ to, icon: Icon, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === "/"}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                      : "text-muted-foreground hover:bg-white/40 dark:hover:bg-white/10 hover:text-foreground"
+                  }`
+                }
+              >
+                <Icon className="w-4.5 h-4.5 shrink-0" />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="p-3 mt-auto">
+            <div className="px-3.5 py-2.5 mb-1 rounded-2xl bg-white/30 dark:bg-white/[0.06]">
+              <p className="text-xs font-medium text-foreground truncate">{user?.user_metadata?.username || user?.email}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </div>
+            <button
+              onClick={signOut}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="p-3 border-t border-border">
-          <div className="px-3 py-2 mb-1">
-            <p className="text-xs font-medium text-foreground truncate">{user?.user_metadata?.username || user?.email}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              <LogOut className="w-4 h-4" />
+              {t("auth.logout")}
+            </button>
           </div>
-          <button
-            onClick={signOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            {t("auth.logout")}
-          </button>
         </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <div className="flex-1 overflow-y-auto pb-28 md:pb-0">
           <Outlet />
         </div>
       </main>
 
-      {/* Bottom nav (mobile) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-        <div className="flex items-center justify-around h-16 px-2">
+      {/* Bottom nav (mobile) — floating glass pill */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-2">
+        <div className="glass-pill flex items-center justify-around h-16 px-2 max-w-md mx-auto">
           {navItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-colors min-w-[56px] ${
-                  isActive ? "text-blue-600" : "text-muted-foreground"
+                `flex flex-col items-center gap-1 px-3 py-1.5 rounded-2xl transition-all min-w-[56px] ${
+                  isActive ? "text-primary" : "text-muted-foreground"
                 }`
               }
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{label}</span>
+              {({ isActive }) => (
+                <>
+                  <div className={`flex items-center justify-center w-9 h-9 rounded-full transition-all ${isActive ? "bg-primary/15" : ""}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-[10px] font-medium">{label}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </div>

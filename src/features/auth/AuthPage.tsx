@@ -6,6 +6,9 @@ import { Eye, EyeOff, CreditCard } from "lucide-react";
 
 type AuthMode = "login" | "register" | "forgot" | "verify";
 
+const inputClass =
+  "w-full px-4 py-3 rounded-2xl border border-border bg-white/40 dark:bg-white/[0.06] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition backdrop-blur-sm";
+
 export default function AuthPage() {
   const { t } = useApp();
   const [mode, setMode] = useState<AuthMode>("login");
@@ -59,60 +62,38 @@ export default function AuthPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: "email",
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Email подтверждён!");
-    }
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+    if (error) toast.error(error.message);
+    else toast.success("Email подтверждён!");
     setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950 flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-600/30">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-primary-dark rounded-[1.5rem] mb-4 shadow-xl shadow-primary/30">
             <CreditCard className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">CashBack Pro</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">CashBack Pro</h1>
           <p className="text-muted-foreground text-sm mt-1">Управляй кешбеком семьи</p>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl shadow-xl p-6">
-          {/* Login */}
+        <div className="glass glass-sheen rounded-[2rem] p-7">
           {mode === "login" && (
             <>
               <h2 className="text-xl font-semibold mb-6">{t("auth.login")}</h2>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-foreground block mb-1.5">{t("auth.email")}</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className={inputClass} />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-foreground block mb-1.5">{t("auth.password")}</label>
                   <div className="relative">
-                    <input
-                      type={showPass ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      placeholder="••••••••"
-                      className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className={inputClass + " pr-11"} />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
@@ -120,77 +101,49 @@ export default function AuthPage() {
                 <button type="button" onClick={() => setMode("forgot")} className="text-sm text-primary hover:underline">
                   {t("auth.forgotPassword")}
                 </button>
-                <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+                <button type="submit" disabled={loading} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
                   {loading ? t("common.loading") : t("auth.login")}
                 </button>
               </form>
-              <p className="text-center text-sm text-muted-foreground mt-4">
+              <p className="text-center text-sm text-muted-foreground mt-5">
                 {t("auth.noAccount")}{" "}
-                <button onClick={() => setMode("register")} className="text-primary font-medium hover:underline">
-                  {t("auth.register")}
-                </button>
+                <button onClick={() => setMode("register")} className="text-primary font-medium hover:underline">{t("auth.register")}</button>
               </p>
             </>
           )}
 
-          {/* Register */}
           {mode === "register" && (
             <>
               <h2 className="text-xl font-semibold mb-6">{t("auth.register")}</h2>
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium block mb-1.5">Имя пользователя</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    placeholder="Иван"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                  />
+                  <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} required placeholder="Иван" className={inputClass} />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1.5">{t("auth.email")}</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className={inputClass} />
                 </div>
                 <div>
                   <label className="text-sm font-medium block mb-1.5">{t("auth.password")}</label>
                   <div className="relative">
-                    <input
-                      type={showPass ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      placeholder="минимум 6 символов"
-                      className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                    />
-                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="минимум 6 символов" className={inputClass + " pr-11"} />
+                    <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition disabled:opacity-50 shadow-sm">
+                <button type="submit" disabled={loading} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
                   {loading ? t("common.loading") : t("auth.register")}
                 </button>
               </form>
-              <p className="text-center text-sm text-muted-foreground mt-4">
+              <p className="text-center text-sm text-muted-foreground mt-5">
                 {t("auth.hasAccount")}{" "}
-                <button onClick={() => setMode("login")} className="text-primary font-medium hover:underline">
-                  {t("auth.login")}
-                </button>
+                <button onClick={() => setMode("login")} className="text-primary font-medium hover:underline">{t("auth.login")}</button>
               </p>
             </>
           )}
 
-          {/* Forgot */}
           {mode === "forgot" && (
             <>
               <h2 className="text-xl font-semibold mb-2">{t("auth.resetPassword")}</h2>
@@ -198,26 +151,16 @@ export default function AuthPage() {
               <form onSubmit={handleForgot} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium block mb-1.5">{t("auth.email")}</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                  />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className={inputClass} />
                 </div>
-                <button type="submit" disabled={loading} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition disabled:opacity-50 shadow-sm">
+                <button type="submit" disabled={loading} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
                   {loading ? t("common.loading") : t("auth.sendCode")}
                 </button>
               </form>
-              <button onClick={() => setMode("login")} className="text-center w-full text-sm text-primary hover:underline mt-4 block">
-                ← {t("common.back")}
-              </button>
+              <button onClick={() => setMode("login")} className="text-center w-full text-sm text-primary hover:underline mt-5 block">← {t("common.back")}</button>
             </>
           )}
 
-          {/* Verify */}
           {mode === "verify" && (
             <>
               <h2 className="text-xl font-semibold mb-2">{t("auth.confirmEmail")}</h2>
@@ -225,23 +168,13 @@ export default function AuthPage() {
               <form onSubmit={handleVerify} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium block mb-1.5">{t("auth.enterCode")}</label>
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    required
-                    placeholder="123456"
-                    maxLength={6}
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-center text-2xl tracking-widest placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition"
-                  />
+                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} required placeholder="123456" maxLength={6} className={inputClass + " text-center text-2xl tracking-widest"} />
                 </div>
-                <button type="submit" disabled={loading || code.length !== 6} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition disabled:opacity-50 shadow-sm">
+                <button type="submit" disabled={loading || code.length !== 6} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
                   {loading ? t("common.loading") : t("auth.verify")}
                 </button>
               </form>
-              <button onClick={() => setMode("login")} className="text-center w-full text-sm text-primary hover:underline mt-4 block">
-                ← {t("common.back")}
-              </button>
+              <button onClick={() => setMode("login")} className="text-center w-full text-sm text-primary hover:underline mt-5 block">← {t("common.back")}</button>
             </>
           )}
         </div>

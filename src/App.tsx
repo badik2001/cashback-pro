@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./shared/hooks/useAuth";
-import { AppProvider } from "./shared/hooks/useApp";
+import { AppProvider, useApp } from "./shared/hooks/useApp";
 import AuthPage from "./features/auth/AuthPage";
 import Layout from "./features/layout/Layout";
 import DashboardPage from "./features/dashboard/DashboardPage";
@@ -20,7 +20,7 @@ function AppRoutes() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-blue-600 rounded-2xl animate-pulse" />
+          <div className="w-12 h-12 bg-primary rounded-2xl animate-pulse" />
           <p className="text-muted-foreground text-sm">Загрузка...</p>
         </div>
       </div>
@@ -42,14 +42,39 @@ function AppRoutes() {
   );
 }
 
+function ThemedToaster() {
+  const { theme } = useApp();
+  return (
+    <Toaster
+      position="top-center"
+      theme={theme}
+      toastOptions={{
+        style: {
+          borderRadius: "16px",
+          fontSize: "14px",
+          background: "var(--glass-bg-strong)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          border: "1px solid var(--glass-border)",
+          color: "hsl(var(--foreground))",
+        },
+      }}
+    />
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <AuthProvider>
           <BrowserRouter>
+            <div className="ambient-bg">
+              <div className="ambient-blob ambient-blob--primary" />
+              <div className="ambient-blob ambient-blob--secondary" />
+              <div className="ambient-blob ambient-blob--tertiary" />
+            </div>
             <AppRoutes />
-            <Toaster position="top-center" toastOptions={{ style: { borderRadius: "12px", fontSize: "14px" } }} />
+            <ThemedToaster />
           </BrowserRouter>
         </AuthProvider>
       </AppProvider>
@@ -57,3 +82,4 @@ function App() {
   );
 }
 export default App;
+

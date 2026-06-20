@@ -1,70 +1,169 @@
-import { useState, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../shared/lib/supabase";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useApp } from "../../shared/hooks/useApp";
-import { Plus, Trash2, ChevronRight, CreditCard, X, Upload, Check } from "lucide-react";
+import { getCategoryIcon } from "../../shared/lib/categoryIcons";
+import { BANK_PRESETS, CUSTOM_BANK_VALUE, fallbackBankColor, getBankPreset } from "../../shared/lib/banks";
+import GlassSelect from "../../shared/components/GlassSelect";
+import BankAvatar from "../../shared/components/BankAvatar";
+import SwipeToDelete from "../../shared/components/SwipeToDelete";
+import { Plus, ChevronLeft, ChevronRight, CreditCard, Check, CirclePlus, Banknote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Card } from "../../shared/types";
 
-const DEFAULT_BANKS = [
-  { name: "Зеленый банк", color: "bg-green-500" },
-  { name: "Красный банк", color: "bg-red-500" },
-  { name: "Желтый банк", color: "bg-yellow-500" },
-  { name: "Синий банк", color: "bg-blue-500" },
-];
+type EditableCategory = { name: string; percent: number };
+type View = "list" | "add" | "edit";
+
+const inputClass =
+  "w-full px-4 py-3.5 rounded-2xl border border-border bg-white/40 dark:bg-white/[0.06] backdrop-blur-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition text-[15px]";
+
+function formatLastUpdated(dates: string[]): string | null {
+  if (dates.length === 0) return null;
+  const latest = dates.reduce((a, b) => (a > b ? a : b));
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" }).format(new Date(latest));
+}
 
 export default function CardsPage() {
   const { user } = useAuth();
   const { t } = useApp();
   const qc = useQueryClient();
+
+  const [view, setView] = useState<View>("list");
+
+  // ---- form state (shared by add + edit) ----
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newCardName, setNewCardName] = useState("");
-  const [newCardBank, setNewCardBank] = useState("");
-  const [swipedId, setSwipedId] = useState<string | null>(null);
-  
-  const [editCategories, setEditCategories] = useState<{ name: string; percent: number }[]>([]);
-  const [processingOcr, setProcessingOcr] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [bankSelection, setBankSelection] = useState<string>("");
+  const [customBankName, setCustomBankName] = useState("");
+  const [categories, setCategories] = useState<EditableCategory[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrStatus, setOcrStatus] = useState("");
+  const [confirmDeleteCard, setConfirmDeleteCard] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const touchStartX = useRef(0);
 
   const { data: cards = [], isLoading } = useQuery({
     queryKey: ["cards", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("cards")
         .select("*, cashback_categories(*)")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: true });
+      if (error) throw error;
       return (data || []) as Card[];
     },
     enabled: !!user,
   });
 
-  const addCard = useMutation({
-    mutationFn: async ({ name, bank }: { name: string; bank: string }) => {
-      const colorMap: Record<string, string> = {
-        "Зеленый банк": "#22c55e",
-        "Красный банк": "#ef4444",
-        "Желтый банк": "#eab308",
-        "Синий банк": "#3b82f6",
-      };
-      const { data, error } = await supabase.from("cards").insert({
-        user_id: user!.id,
-        name,
-        bank_name: bank,
-        bank_color: colorMap[bank] || "#6366f1",
-      }).select().single();
+  const resolvedBank = useMemo(() => {
+    if (bankSelection === CUSTOM_BANK_VALUE) {
+      const name = customBankName.trim();
+      return { name, color: name ? fallbackBankColor(name) : "" };
+    }
+    const preset = getBankPreset(bankSelection);
+    return { name: bankSelection, color: preset?.color || "" };
+  }, [bankSelection, customBankName]);
+
+  const bankOptions = useMemo(
+    () => [
+      ...BANK_PRESETS.map((b) => ({
+        value: b.name,
+        label: b.name,
+        left: <BankAvatar name={b.name} color={b.color} letter={b.letter} size={28} />,
+      })),
+      { value: CUSTOM_BANK_VALUE, label: "Другой банк...", left: <Banknote className="w-5 h-5 text-muted-foreground shrink-0" /> },
+    ],
+    []
+  );
+
+  const resetForm = () => {
+    setSelectedCard(null);
+    setFormName("");
+    setBankSelection("");
+    setCustomBankName("");
+    setCategories([]);
+    setEditingIndex(null);
+    setConfirmDeleteCard(false);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setView("add");
+  };
+
+  const openEdit = (card: Card) => {
+    setSelectedCard(card);
+    setFormName(card.name);
+    const preset = BANK_PRESETS.find((b) => b.name === card.bank_name);
+    if (preset) {
+      setBankSelection(preset.name);
+      setCustomBankName("");
+    } else {
+      setBankSelection(CUSTOM_BANK_VALUE);
+      setCustomBankName(card.bank_name);
+    }
+    setCategories((card.cashback_categories || []).map((c) => ({ name: c.name, percent: c.percent })));
+    setEditingIndex(null);
+    setConfirmDeleteCard(false);
+    setView("edit");
+  };
+
+  const goBack = () => {
+    setView("list");
+    resetForm();
+  };
+
+  // ---- mutations ----
+
+  const createCard = useMutation({
+    mutationFn: async () => {
+      const { data: card, error } = await supabase
+        .from("cards")
+        .insert({ user_id: user!.id, name: formName.trim(), bank_name: resolvedBank.name, bank_color: resolvedBank.color || "#86177D" })
+        .select()
+        .single();
       if (error) throw error;
-      return data;
+      const cleaned = categories.filter((c) => c.name.trim());
+      if (cleaned.length > 0) {
+        const { error: catError } = await supabase
+          .from("cashback_categories")
+          .insert(cleaned.map((c) => ({ card_id: card.id, name: c.name.trim(), percent: c.percent })));
+        if (catError) throw catError;
+      }
+      return card;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cards"] });
-      setShowAdd(false);
-      setNewCardName("");
-      setNewCardBank("");
       toast.success("Карта добавлена!");
+      goBack();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateCard = useMutation({
+    mutationFn: async () => {
+      if (!selectedCard) return;
+      const { error } = await supabase
+        .from("cards")
+        .update({ name: formName.trim(), bank_name: resolvedBank.name, bank_color: resolvedBank.color || selectedCard.bank_color })
+        .eq("id", selectedCard.id);
+      if (error) throw error;
+
+      await supabase.from("cashback_categories").delete().eq("card_id", selectedCard.id);
+      const cleaned = categories.filter((c) => c.name.trim());
+      if (cleaned.length > 0) {
+        const { error: catError } = await supabase
+          .from("cashback_categories")
+          .insert(cleaned.map((c) => ({ card_id: selectedCard.id, name: c.name.trim(), percent: c.percent })));
+        if (catError) throw catError;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cards"] });
+      toast.success("Карта сохранена!");
+      goBack();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -76,307 +175,314 @@ export default function CardsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cards"] });
-      setSwipedId(null);
       toast.success("Карта удалена");
-    },
-  });
-
-  const saveCategories = useMutation({
-    mutationFn: async ({ cardId, categories }: { cardId: string; categories: { name: string; percent: number }[] }) => {
-      await supabase.from("cashback_categories").delete().eq("card_id", cardId);
-      if (categories.length > 0) {
-        const { error } = await supabase.from("cashback_categories").insert(
-          categories.map((c) => ({ card_id: cardId, name: c.name, percent: c.percent }))
-        );
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cards"] });
-      setSelectedCard(null);
-      toast.success("Категории сохранены!");
+      if (view === "edit") goBack();
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleOpenCard = (card: Card) => {
-    setSelectedCard(card);
-    setEditCategories(card.cashback_categories?.map((c) => ({ name: c.name, percent: c.percent })) || []);
+  // ---- category row helpers ----
 
+  const addBlankCategory = () => {
+    setCategories((prev) => {
+      const next = [...prev, { name: "", percent: 1 }];
+      setEditingIndex(next.length - 1);
+      return next;
+    });
   };
 
-  // Simulate OCR (frontend-only, Tesseract would run server-side or via worker)
+  const updateCategoryAt = (idx: number, patch: Partial<EditableCategory>) => {
+    setCategories((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  };
+
+  const removeCategoryAt = (idx: number) => {
+    setCategories((prev) => prev.filter((_, i) => i !== idx));
+    setEditingIndex(null);
+  };
+
   const handleScreenshot = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    setProcessingOcr(true);
-    toast.info("Обрабатываем скриншот...");
-    // Simulate OCR processing delay
-    await new Promise((r) => setTimeout(r, 1500));
-    // In real app: use Tesseract.js worker
-    // Mock result:
-    const mock = [
-      { name: "Супермаркеты", percent: 5 },
-      { name: "АЗС", percent: 3 },
-      { name: "Рестораны", percent: 2 },
-    ];
-
-    setEditCategories((prev) => [...prev, ...mock]);
-    setProcessingOcr(false);
-    toast.success("Категории извлечены!");
+    setOcrBusy(true);
+    setOcrStatus("Подготавливаем изображение...");
+    try {
+      const { recognizeCategoriesFromImage } = await import("../../shared/lib/ocr");
+      const found = await recognizeCategoriesFromImage(file, (status, progress) => {
+        const labels: Record<string, string> = {
+          "loading tesseract core": "Загружаем модель...",
+          "initializing tesseract": "Инициализация...",
+          "loading language traineddata": "Загружаем языковые данные...",
+          "initializing api": "Подготовка...",
+          "recognizing text": "Распознаём текст...",
+        };
+        setOcrStatus(`${labels[status] || status} ${Math.round(progress * 100)}%`);
+      });
+      if (found.length === 0) {
+        toast.error("Не удалось найти категории на скриншоте. Попробуйте более чёткое фото.");
+      } else {
+        setCategories((prev) => [...prev, ...found]);
+        toast.success(`Найдено категорий: ${found.length}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Не удалось распознать скриншот");
+    } finally {
+      setOcrBusy(false);
+      setOcrStatus("");
+    }
   };
 
-  const bankColorClass: Record<string, string> = {
-    "#22c55e": "bg-green-500",
-    "#ef4444": "bg-red-500",
-    "#eab308": "bg-yellow-500",
-    "#3b82f6": "bg-blue-500",
-  };
+  const lastUpdated = useMemo(
+    () => (selectedCard ? formatLastUpdated((selectedCard.cashback_categories || []).map((c) => c.created_at)) : null),
+    [selectedCard]
+  );
 
-  const getBgClass = (color?: string) => bankColorClass[color || ""] || "bg-indigo-500";
+  const canSave = formName.trim().length > 0 && resolvedBank.name.trim().length > 0;
 
-  return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("cards.title")}</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">{cards.length} карт</p>
-        </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          {t("cards.add")}
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-muted animate-pulse rounded-2xl" />)}
-        </div>
-      ) : cards.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <CreditCard className="w-8 h-8 text-muted-foreground" />
+  // =========================================================
+  // LIST VIEW
+  // =========================================================
+  if (view === "list") {
+    return (
+      <div className="p-4 md:p-6 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tight">{t("cards.title")}</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">{cards.length} карт</p>
           </div>
-          <p className="font-medium text-foreground">{t("cards.empty")}</p>
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2.5 rounded-2xl transition shadow-lg shadow-primary/25 hover:opacity-90"
+          >
+            <Plus className="w-4 h-4" />
+            {t("cards.add")}
+          </button>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {cards.map((card) => (
-            <div
-              key={card.id}
-              className="relative overflow-hidden rounded-2xl"
-              onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
-              onTouchEnd={(e) => {
-                const diff = touchStartX.current - e.changedTouches[0].clientX;
-                if (diff > 60) setSwipedId(card.id);
-                else if (diff < -30) setSwipedId(null);
-              }}
-            >
-              {/* Delete button revealed on swipe */}
-              <div className="absolute inset-y-0 right-0 flex items-center">
-                <button
-                  onClick={() => deleteCard.mutate(card.id)}
-                  className="h-full px-6 bg-red-500 text-white flex items-center gap-2 text-sm font-medium"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {t("cards.delete")}
-                </button>
-              </div>
-              {/* Card item */}
-              <div
-                className={`relative bg-card border border-border rounded-2xl transition-transform duration-200 ${swipedId === card.id ? "-translate-x-24" : "translate-x-0"}`}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-white/20 dark:bg-white/[0.06] animate-pulse rounded-3xl" />
+            ))}
+          </div>
+        ) : cards.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="glass w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
+              <CreditCard className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="font-medium text-foreground">{t("cards.empty")}</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {cards.map((card) => (
+              <SwipeToDelete
+                key={card.id}
+                direction="right"
+                deleteLabel={t("cards.delete")}
+                onDelete={() => deleteCard.mutate(card.id)}
+                className="rounded-3xl group"
               >
-                <button
-                  onClick={() => handleOpenCard(card)}
-                  className="w-full flex items-center gap-4 p-4 text-left"
-                >
-                  <div className={`w-12 h-12 ${getBgClass(card.bank_color)} rounded-xl flex items-center justify-center shrink-0`}>
-                    <CreditCard className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{card.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{card.bank_name}</p>
-                    <p className="text-xs text-muted-foreground">{card.cashback_categories?.length || 0} категорий</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                </button>
-                {/* Desktop delete */}
-                <button
-                  onClick={() => deleteCard.mutate(card.id)}
-                  className="absolute right-14 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-medium transition"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Удалить
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add Card Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg">{t("cards.add")}</h3>
-              <button onClick={() => setShowAdd(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium block mb-1.5">{t("cards.name")}</label>
-                <input
-                  type="text"
-                  value={newCardName}
-                  onChange={(e) => setNewCardName(e.target.value)}
-                  placeholder="Моя карта"
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium block mb-1.5">{t("cards.bank")}</label>
-                <select
-                  value={newCardBank}
-                  onChange={(e) => setNewCardBank(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="">Выберите банк...</option>
-                  {DEFAULT_BANKS.map((b) => (
-                    <option key={b.name} value={b.name}>{b.name}</option>
-                  ))}
-                  <option value="Другой">Другой банк</option>
-                </select>
-              </div>
-              {newCardBank === "Другой" && (
-                <input
-                  type="text"
-                  placeholder="Название банка"
-                  onChange={(e) => setNewCardBank(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-              )}
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setShowAdd(false)} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium text-foreground hover:bg-accent transition">
-                  {t("common.cancel")}
-                </button>
-                <button
-                  onClick={() => newCardName && newCardBank && addCard.mutate({ name: newCardName, bank: newCardBank })}
-                  disabled={!newCardName || !newCardBank || addCard.isPending}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50"
-                >
-                  {addCard.isPending ? "..." : t("common.save")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Card Modal */}
-      {selectedCard && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-border">
-              <div>
-                <h3 className="font-semibold text-lg">{selectedCard.name}</h3>
-                <p className="text-sm text-muted-foreground">{selectedCard.bank_name}</p>
-              </div>
-              <button onClick={() => setSelectedCard(null)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Upload screenshot */}
-              <div>
-                <p className="text-sm font-medium mb-2">{t("cards.uploadScreenshot")}</p>
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={processingOcr}
-                  className="w-full border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-4 flex flex-col items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition disabled:opacity-50"
-                >
-                  <Upload className="w-6 h-6" />
-                  {processingOcr ? "Обрабатываем..." : "Загрузить скриншот"}
-                  <span className="text-xs">Автоматически извлечём категории кешбека</span>
-                </button>
-                <input ref={fileRef} type="file" accept="image/*" onChange={handleScreenshot} className="hidden" />
-              </div>
-
-              {/* Categories */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm font-medium">{t("cards.categories")}</p>
+                <div className="glass rounded-3xl relative">
+                  <button onClick={() => openEdit(card)} className="w-full flex items-center gap-4 p-4 text-left">
+                    <BankAvatar name={card.bank_name} color={card.bank_color} size={48} square className="shadow-md" />
+                    <div className="flex-1 min-w-0 md:pr-16">
+                      <p className="font-medium text-foreground truncate">{card.name}</p>
+                      <p className="text-sm text-muted-foreground truncate">{card.bank_name}</p>
+                      <p className="text-xs text-muted-foreground">{card.cashback_categories?.length || 0} категорий</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 md:hidden" />
+                  </button>
                   <button
-                    onClick={() => setEditCategories((prev) => [...prev, { name: "", percent: 0 }])}
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteCard.mutate(card.id);
+                    }}
+                    className="hidden md:group-hover:flex absolute right-4 top-1/2 -translate-y-1/2 items-center gap-1.5 px-3 py-1.5 rounded-xl text-destructive hover:bg-destructive/10 text-xs font-medium transition"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    {t("cards.addCategory")}
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t("cards.delete")}
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {editCategories.map((cat, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
+              </SwipeToDelete>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // =========================================================
+  // ADD / EDIT VIEW (full page, bottom nav stays visible)
+  // =========================================================
+  return (
+    <div className="max-w-2xl mx-auto pb-16">
+      <div className="flex items-center gap-3 px-4 md:px-6 pt-4 md:pt-6 pb-4">
+        <button
+          onClick={goBack}
+          aria-label={t("common.back")}
+          className="w-9 h-9 rounded-full glass flex items-center justify-center text-foreground shrink-0"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <h1 className="text-lg font-semibold text-foreground tracking-tight">
+          {view === "add" ? "Добавление карты" : "Редактирование карты"}
+        </h1>
+      </div>
+
+      <div className="px-4 md:px-6 space-y-5">
+        {/* Card name */}
+        <div>
+          <label className="text-sm text-muted-foreground block mb-1.5 px-1">{t("cards.name")}</label>
+          <input
+            type="text"
+            value={formName}
+            onChange={(e) => setFormName(e.target.value)}
+            placeholder="Моя карта"
+            className={inputClass}
+          />
+        </div>
+
+        {/* Bank picker */}
+        <div>
+          <label className="text-sm text-muted-foreground block mb-1.5 px-1">{t("cards.bank")}</label>
+          <GlassSelect
+            value={bankSelection}
+            onChange={setBankSelection}
+            options={bankOptions}
+            placeholder="Выберите банк"
+            triggerLeft={<Banknote className="w-5 h-5 text-muted-foreground shrink-0" />}
+          />
+          {bankSelection === CUSTOM_BANK_VALUE && (
+            <input
+              type="text"
+              value={customBankName}
+              onChange={(e) => setCustomBankName(e.target.value)}
+              placeholder="Название банка"
+              className={inputClass + " mt-2.5"}
+            />
+          )}
+        </div>
+
+        {/* Screenshot upload */}
+        <div>
+          <label className="text-sm text-muted-foreground block mb-1.5 px-1">{t("cards.categories")}</label>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={ocrBusy}
+            className="w-full text-left px-4 py-3.5 rounded-2xl glass text-primary text-[15px] font-medium disabled:opacity-60 transition"
+          >
+            {ocrBusy ? ocrStatus || "Обрабатываем..." : "Выбрать скриншоты"}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleScreenshot} className="hidden" />
+        </div>
+
+        {/* Categories list */}
+        <div className="rounded-3xl glass overflow-hidden">
+          {categories.map((cat, idx) => {
+            const Icon = getCategoryIcon(cat.name || "");
+            return (
+              <div key={idx} className={idx > 0 ? "border-t border-border" : ""}>
+                <SwipeToDelete direction="left" disabled={editingIndex === idx} onDelete={() => removeCategoryAt(idx)} className="group">
+                  {editingIndex === idx ? (
+                    <div className="flex items-center gap-2 px-3 py-2.5">
                       <input
+                        autoFocus
                         type="text"
                         value={cat.name}
-                        onChange={(e) => {
-                          const next = [...editCategories];
-                          next[idx].name = e.target.value;
-                          setEditCategories(next);
-                        }}
+                        onChange={(e) => updateCategoryAt(idx, { name: e.target.value })}
                         placeholder={t("cards.categoryName")}
-                        className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="flex-1 px-3 py-2 rounded-xl border border-border bg-white/40 dark:bg-white/[0.06] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                       <input
                         type="number"
-                        value={cat.percent}
                         min={0}
                         max={100}
-                        onChange={(e) => {
-                          const next = [...editCategories];
-                          next[idx].percent = Number(e.target.value);
-                          setEditCategories(next);
-                        }}
+                        value={cat.percent}
+                        onChange={(e) => updateCategoryAt(idx, { percent: Number(e.target.value) })}
                         placeholder="%"
-                        className="w-16 px-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                        className="w-16 px-2 py-2 rounded-xl border border-border bg-white/40 dark:bg-white/[0.06] text-sm text-foreground text-center focus:outline-none focus:ring-2 focus:ring-primary/40"
                       />
                       <button
-                        onClick={() => setEditCategories((prev) => prev.filter((_, i) => i !== idx))}
-                        className="text-muted-foreground hover:text-destructive transition"
+                        onClick={() => setEditingIndex(null)}
+                        className="w-9 h-9 shrink-0 rounded-xl bg-primary text-primary-foreground flex items-center justify-center"
                       >
-                        <X className="w-4 h-4" />
+                        <Check className="w-4 h-4" />
                       </button>
                     </div>
-                  ))}
-                  {editCategories.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Нет категорий. Добавьте или загрузите скриншот.</p>
+                  ) : (
+                    <div className="relative">
+                      <button onClick={() => setEditingIndex(idx)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Icon className="w-4.5 h-4.5" />
+                        </div>
+                        <div className="flex-1 min-w-0 md:pr-9">
+                          <p className="font-medium text-foreground text-sm truncate">{cat.name || "Без названия"}</p>
+                          <p className="text-xs text-muted-foreground">Кэшбек {cat.percent}%</p>
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeCategoryAt(idx);
+                        }}
+                        aria-label={t("cards.delete")}
+                        className="hidden md:group-hover:flex absolute right-3 top-1/2 -translate-y-1/2 items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   )}
-                </div>
+                </SwipeToDelete>
               </div>
-            </div>
+            );
+          })}
 
-            <div className="p-6 border-t border-border flex gap-3">
-              <button onClick={() => setSelectedCard(null)} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium text-foreground hover:bg-accent transition">
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={() => saveCategories.mutate({ cardId: selectedCard.id, categories: editCategories.filter((c) => c.name) })}
-                disabled={saveCategories.isPending}
-                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                <Check className="w-4 h-4" />
-                {saveCategories.isPending ? "..." : t("common.save")}
-              </button>
-            </div>
+          <div className={categories.length > 0 ? "border-t border-border" : ""}>
+            <button onClick={addBlankCategory} className="w-full flex items-center gap-3 px-4 py-3.5 text-left text-secondary-dark dark:text-secondary">
+              <CirclePlus className="w-5 h-5 shrink-0" />
+              <span className="font-medium text-sm">{t("cards.addCategory")}</span>
+            </button>
           </div>
         </div>
-      )}
+
+        <p className="text-xs text-muted-foreground px-1 leading-relaxed">
+          Вы можете добавить категории вручную или выбрать снимок списка категорий, для автоматического добавления.
+          <br />
+          Свайпните категорию влево, чтобы удалить.
+          <br />
+          Нажмите на категорию, чтобы редактировать.
+          {lastUpdated && (
+            <>
+              <br />
+              Последняя дата обновления категорий: {lastUpdated}
+            </>
+          )}
+        </p>
+
+        {/* Actions */}
+        <div className="space-y-2.5 pt-2">
+          <button
+            onClick={() => (view === "add" ? createCard.mutate() : updateCard.mutate())}
+            disabled={!canSave || createCard.isPending || updateCard.isPending}
+            className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl text-[15px] font-semibold transition disabled:opacity-50 shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
+          >
+            {(createCard.isPending || updateCard.isPending) ? "Сохраняем..." : "Сохранить карту"}
+          </button>
+
+          {view === "edit" && selectedCard && (
+            <button
+              onClick={() => {
+                if (confirmDeleteCard) deleteCard.mutate(selectedCard.id);
+                else setConfirmDeleteCard(true);
+              }}
+              disabled={deleteCard.isPending}
+              className="w-full py-3.5 bg-destructive/10 text-destructive rounded-2xl text-[15px] font-semibold transition disabled:opacity-50 hover:bg-destructive/15"
+            >
+              {deleteCard.isPending ? "Удаляем..." : confirmDeleteCard ? "Нажмите ещё раз для подтверждения" : "Удалить карту"}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

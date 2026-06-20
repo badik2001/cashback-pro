@@ -7,6 +7,7 @@ type Lang = "ru" | "en";
 interface AppContextType {
   theme: Theme;
   toggleTheme: () => void;
+  setTheme: (t: Theme) => void;
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string) => string;
@@ -166,13 +167,14 @@ const translations: Record<Lang, Record<string, string>> = {
 const AppContext = createContext<AppContextType>({
   theme: "light",
   toggleTheme: () => {},
+  setTheme: () => {},
   lang: "ru",
   setLang: () => {},
   t: (k) => k,
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [theme, setThemeState] = useState<Theme>(() => {
     return (localStorage.getItem("theme") as Theme) || "light";
   });
   const [lang, setLangState] = useState<Lang>(() => {
@@ -184,7 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+  const toggleTheme = () => setThemeState((t) => (t === "light" ? "dark" : "light"));
+  const setTheme = (t: Theme) => setThemeState(t);
 
   const setLang = (l: Lang) => {
     setLangState(l);
@@ -194,7 +197,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const t = (key: string) => translations[lang][key] || key;
 
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, lang, setLang, t }}>
+    <AppContext.Provider value={{ theme, toggleTheme, setTheme, lang, setLang, t }}>
       {children}
     </AppContext.Provider>
   );
