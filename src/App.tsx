@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./shared/hooks/useAuth";
 import { AppProvider, useApp } from "./shared/hooks/useApp";
 import AuthPage from "./features/auth/AuthPage";
+import SetNewPasswordPage from "./features/auth/SetNewPasswordPage";
 import Layout from "./features/layout/Layout";
 import DashboardPage from "./features/dashboard/DashboardPage";
 import CardsPage from "./features/cards/CardsPage";
@@ -15,7 +16,7 @@ const queryClient = new QueryClient({
 });
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery } = useAuth();
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -25,6 +26,9 @@ function AppRoutes() {
         </div>
       </div>
     );
+  }
+  if (passwordRecovery) {
+    return <Routes><Route path="*" element={<SetNewPasswordPage />} /></Routes>;
   }
   if (!user) {
     return <Routes><Route path="*" element={<AuthPage />} /></Routes>;

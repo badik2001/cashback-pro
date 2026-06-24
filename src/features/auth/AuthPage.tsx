@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff, CreditCard } from "lucide-react";
 
 type AuthMode = "login" | "register" | "forgot" | "verify";
+type VerifyPurpose = "signup" | "recovery";
 
 const inputClass =
   "w-full px-4 py-3 rounded-2xl border border-border bg-white/40 dark:bg-white/[0.06] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition backdrop-blur-sm";
@@ -12,6 +13,7 @@ const inputClass =
 export default function AuthPage() {
   const { t } = useApp();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [verifyPurpose, setVerifyPurpose] = useState<VerifyPurpose>("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -33,12 +35,20 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: {
+        data: { username },
+        // Only relevant if the "Confirm signup" email template still uses
+        // {{ .ConfirmationURL }} — keeps the link pointed at this deployment
+        // instead of Supabase's default (localhost:3000) Site URL.
+        emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
+      },
     });
     if (error) {
       toast.error(error.message);
     } else {
       toast.success("Письмо отправлено! Проверьте email.");
+      setVerifyPurpose("signup");
+      setCode("");
       setMode("verify");
     }
     setLoading(false);
@@ -54,6 +64,8 @@ export default function AuthPage() {
       toast.error(error.message);
     } else {
       toast.success("Код отправлен на email!");
+      setVerifyPurpose("recovery");
+      setCode("");
       setMode("verify");
     }
     setLoading(false);
@@ -62,9 +74,24 @@ export default function AuthPage() {
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
-    if (error) toast.error(error.message);
-    else toast.success("Email подтверждён!");
+    // "email" confirms a new signup, "recovery" confirms a password-reset
+    // code — using the wrong one makes Supabase reject an otherwise-correct
+    // 6-digit code.
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: verifyPurpose === "recovery" ? "recovery" : "email",
+    });
+    if (error) {
+      toast.error(error.message);
+    } else if (verifyPurpose === "recovery") {
+      // Supabase just signed the user into a temporary session — App.tsx
+      // detects the "PASSWORD_RECOVERY" event and swaps this whole page
+      // out for the "set a new password" screen automatically.
+      toast.success("Код подтверждён!");
+    } else {
+      toast.success("Email подтверждён!");
+    }
     setLoading(false);
   };
 
@@ -163,14 +190,16 @@ export default function AuthPage() {
 
           {mode === "verify" && (
             <>
-              <h2 className="text-xl font-semibold mb-2">{t("auth.confirmEmail")}</h2>
-              <p className="text-sm text-muted-foreground mb-6">Введите 6-значный код, отправленный на {email}</p>
+              <h2 className="text-xl font-semibold mb-2">
+                {verifyPurpose === "recovery" ? t("auth.resetPassword") : t("auth.confirmEmail")}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-6">Введите код, отправленный на {email}</p>
               <form onSubmit={handleVerify} className="space-y-4">
                 <div>
                   <label className="text-sm font-medium block mb-1.5">{t("auth.enterCode")}</label>
-                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} required placeholder="123456" maxLength={6} className={inputClass + " text-center text-2xl tracking-widest"} />
+                  <input type="text" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 10))} required placeholder="123456" maxLength={10} className={inputClass + " text-center text-2xl tracking-widest"} />
                 </div>
-                <button type="submit" disabled={loading || code.length !== 6} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
+                <button type="submit" disabled={loading || code.length < 6} className="w-full py-3 bg-primary hover:opacity-90 text-primary-foreground font-medium rounded-2xl transition disabled:opacity-50 shadow-lg shadow-primary/25">
                   {loading ? t("common.loading") : t("auth.verify")}
                 </button>
               </form>
