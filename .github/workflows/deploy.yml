@@ -36,12 +36,17 @@ jobs:
 
       - run: npm ci
 
+      # Кастомный домен (cashback-pro.ru) отдаёт сайт с корня, а не с
+      # /cashback-pro/ — поэтому ассеты должны ссылаться на "/", иначе
+      # каждый <script>/<link> получает 404 и страница рендерится пустой.
       - run: npm run build
+        env:
+          VITE_BASE_PATH: /
 
       # GitHub Pages has no server-side routing, so a hard refresh on
-      # something like /cashback-pro/cards would 404. Serving the same
-      # index.html as the 404 page lets the client-side router take
-      # over and render the right screen.
+      # something like /cards would 404. Serving the same index.html as
+      # the 404 page lets the client-side router take over and render
+      # the right screen.
       - run: cp dist/index.html dist/404.html
 
       - uses: actions/configure-pages@v5
