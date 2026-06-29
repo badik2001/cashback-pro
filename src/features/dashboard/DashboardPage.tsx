@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../../shared/lib/supabase";
+import { cardsQueryKey, fetchCards } from "../../shared/lib/cardsQuery";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useApp } from "../../shared/hooks/useApp";
 import { Search, TrendingUp, Percent, CreditCard, ArrowDownAZ, ArrowDown01 } from "lucide-react";
@@ -21,11 +21,8 @@ export default function DashboardPage() {
   const [filterBank, setFilterBank] = useState("all");
 
   const { data: cards = [], isLoading } = useQuery({
-    queryKey: ["cards", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("cards").select("*, cashback_categories(*)").eq("user_id", user!.id);
-      return (data || []) as Card[];
-    },
+    queryKey: cardsQueryKey(user?.id),
+    queryFn: () => fetchCards(user!.id),
     enabled: !!user,
   });
 

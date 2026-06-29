@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../../shared/lib/supabase";
+import { cardsQueryKey, fetchCards } from "../../shared/lib/cardsQuery";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useApp } from "../../shared/hooks/useApp";
 import { getCategoryIcon } from "../../shared/lib/categoryIcons";
@@ -8,7 +9,7 @@ import { BANK_PRESETS, CUSTOM_BANK_VALUE, fallbackBankColor, getBankPreset } fro
 import GlassSelect from "../../shared/components/GlassSelect";
 import BankAvatar from "../../shared/components/BankAvatar";
 import SwipeToDelete from "../../shared/components/SwipeToDelete";
-import { Plus, ChevronLeft, ChevronRight, CreditCard, Check, CirclePlus, Banknote, Trash2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CreditCard, Check, CirclePlus, Banknote, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import type { Card } from "../../shared/types";
 
@@ -41,19 +42,12 @@ export default function CardsPage() {
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrStatus, setOcrStatus] = useState("");
   const [confirmDeleteCard, setConfirmDeleteCard] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: cards = [], isLoading } = useQuery({
-    queryKey: ["cards", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cards")
-        .select("*, cashback_categories(*)")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data || []) as Card[];
-    },
+    queryKey: cardsQueryKey(user?.id),
+    queryFn: () => fetchCards(user!.id),
     enabled: !!user,
   });
 
@@ -86,6 +80,7 @@ export default function CardsPage() {
     setCategories([]);
     setEditingIndex(null);
     setConfirmDeleteCard(false);
+    setSaveError(null);
   };
 
   const openAdd = () => {
@@ -135,7 +130,7 @@ export default function CardsPage() {
       return card;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cards"] });
+      qc.invalidateQueries({ queryKey: cardsQueryKey(user?.id) });
       toast.success("Карта добавлена!");
       goBack();
     },
@@ -161,7 +156,7 @@ export default function CardsPage() {
       }
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cards"] });
+      qc.invalidateQueries({ queryKey: cardsQueryKey(user?.id) });
       toast.success("Карта сохранена!");
       goBack();
     },
@@ -173,12 +168,30 @@ export default function CardsPage() {
       const { error } = await supabase.from("cards").delete().eq("id", id);
       if (error) throw error;
     },
+    // Optimistic delete: remove the card from the cache the instant the
+    // user confirms, instead of waiting for the network round trip *and*
+    // a follow-up refetch before it visually disappears (previously the
+    // ~5-7s gap between the "Карта удалена" toast and the row actually
+    // going away). If the delete fails, we roll the cache back and show
+    // an error toast instead of the success one.
+    onMutate: async (id: string) => {
+      const key = cardsQueryKey(user?.id);
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Card[]>(key);
+      qc.setQueryData<Card[]>(key, (old) => (old || []).filter((c) => c.id !== id));
+      return { previous };
+    },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cards"] });
       toast.success("Карта удалена");
       if (view === "edit") goBack();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error, _id, context) => {
+      if (context?.previous) qc.setQueryData(cardsQueryKey(user?.id), context.previous);
+      toast.error(e.message);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: cardsQueryKey(user?.id) });
+    },
   });
 
   // ---- category row helpers ----
@@ -382,7 +395,7 @@ export default function CardsPage() {
             const Icon = getCategoryIcon(cat.name || "");
             return (
               <div key={idx} className={idx > 0 ? "border-t border-border" : ""}>
-                <SwipeToDelete direction="left" disabled={editingIndex === idx} onDelete={() => removeCategoryAt(idx)} className="group">
+                <SwipeToDelete direction="left" disabled={editingIndex === idx} onDelete={() => removeCategoryAt(idx)}>
                   {editingIndex === idx ? (
                     <div className="flex items-center gap-2 px-3 py-2.5">
                       <input
@@ -410,27 +423,16 @@ export default function CardsPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="relative">
-                      <button onClick={() => setEditingIndex(idx)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
-                        <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                          <Icon className="w-4.5 h-4.5" />
-                        </div>
-                        <div className="flex-1 min-w-0 md:pr-9">
-                          <p className="font-medium text-foreground text-sm truncate">{cat.name || "Без названия"}</p>
-                          <p className="text-xs text-muted-foreground">Кэшбек {cat.percent}%</p>
-                        </div>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeCategoryAt(idx);
-                        }}
-                        aria-label={t("cards.delete")}
-                        className="hidden md:group-hover:flex absolute right-3 top-1/2 -translate-y-1/2 items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <button onClick={() => setEditingIndex(idx)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Icon className="w-4.5 h-4.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground text-sm truncate">{cat.name || "Без названия"}</p>
+                        <p className="text-xs text-muted-foreground">Кэшбек {cat.percent}%</p>
+                      </div>
+                      <Pencil className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                    </button>
                   )}
                 </SwipeToDelete>
               </div>
@@ -462,12 +464,28 @@ export default function CardsPage() {
         {/* Actions */}
         <div className="space-y-2.5 pt-2">
           <button
-            onClick={() => (view === "add" ? createCard.mutate() : updateCard.mutate())}
-            disabled={!canSave || createCard.isPending || updateCard.isPending}
-            className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl text-[15px] font-semibold transition disabled:opacity-50 shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
+            onClick={() => {
+              if (!formName.trim()) {
+                setSaveError("Введите название карты");
+                return;
+              }
+              if (!resolvedBank.name.trim()) {
+                setSaveError("Выберите банк");
+                return;
+              }
+              setSaveError(null);
+              view === "add" ? createCard.mutate() : updateCard.mutate();
+            }}
+            disabled={createCard.isPending || updateCard.isPending}
+            className={`w-full py-3.5 rounded-2xl text-[15px] font-semibold transition shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 ${
+              canSave
+                ? "bg-primary text-primary-foreground shadow-primary/25"
+                : "bg-primary/40 text-primary-foreground/80 shadow-none"
+            }`}
           >
             {(createCard.isPending || updateCard.isPending) ? "Сохраняем..." : "Сохранить карту"}
           </button>
+          {saveError && <p className="text-destructive text-sm text-center">{saveError}</p>}
 
           {view === "edit" && selectedCard && (
             <button

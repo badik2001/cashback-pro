@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider, useAuth } from "./shared/hooks/useAuth";
 import { AppProvider, useApp } from "./shared/hooks/useApp";
+import { cardsQueryKey, fetchCards } from "./shared/lib/cardsQuery";
 import AuthPage from "./features/auth/AuthPage";
 import SetNewPasswordPage from "./features/auth/SetNewPasswordPage";
 import Layout from "./features/layout/Layout";
@@ -17,6 +19,13 @@ const queryClient = new QueryClient({
 
 function AppRoutes() {
   const { user, loading, passwordRecovery } = useAuth();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (!user) return;
+    qc.prefetchQuery({ queryKey: cardsQueryKey(user.id), queryFn: () => fetchCards(user.id) });
+  }, [user, qc]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -91,4 +100,3 @@ function App() {
   );
 }
 export default App;
-

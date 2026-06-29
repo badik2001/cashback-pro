@@ -6,24 +6,23 @@ export interface BankPreset {
 }
 
 /**
- * Curated list of popular Russian banks plus the four seeded
- * "color" banks every new account starts with. Users can still
- * type a fully custom bank name via the "Другой банк" option.
+ * The preset list intentionally contains only generic color names —
+ * never real bank names or their brand colors. Curating an official
+ * bank's name + near-exact brand color inside the app reads as
+ * branding/endorsement and is a real trademark/passing-off risk.
+ * A user typing a real bank's name into the free-text "Другой банк"
+ * field is their own content, not something the app curates, which
+ * is a meaningfully different (much lower) liability picture.
  */
 export const BANK_PRESETS: BankPreset[] = [
   { name: "Зелёный банк", color: "#22c55e", letter: "З" },
   { name: "Красный банк", color: "#ef4444", letter: "К" },
   { name: "Жёлтый банк", color: "#eab308", letter: "Ж" },
   { name: "Синий банк", color: "#3b82f6", letter: "С" },
-  { name: "Т-Банк", color: "#FFDD2D", letter: "Т" },
-  { name: "Сбербанк", color: "#21A038", letter: "С" },
-  { name: "Альфа-Банк", color: "#EF3124", letter: "А" },
-  { name: "ВТБ", color: "#1E3A8A", letter: "В" },
-  { name: "Райффайзенбанк", color: "#FFED00", letter: "Р" },
-  { name: "Газпромбанк", color: "#0033A0", letter: "Г" },
-  { name: "Озон Банк", color: "#005BFF", letter: "О" },
-  { name: "Совкомбанк", color: "#86177D", letter: "С" },
-  { name: "МТС Банк", color: "#E30611", letter: "М" },
+  { name: "Фиолетовый банк", color: "#a855f7", letter: "Ф" },
+  { name: "Оранжевый банк", color: "#f97316", letter: "О" },
+  { name: "Розовый банк", color: "#ec4899", letter: "Р" },
+  { name: "Бирюзовый банк", color: "#14b8a6", letter: "Б" },
 ];
 
 export const CUSTOM_BANK_VALUE = "__custom__";

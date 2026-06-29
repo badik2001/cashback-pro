@@ -66,12 +66,17 @@ export default function FamilyPage() {
 
   const createFamily = useMutation({
     mutationFn: async (name: string) => {
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { data: family, error } = await supabase.from("families").insert({ name, owner_id: user!.id, invite_code: code }).select().single();
+      // create_family is a SECURITY DEFINER RPC (see supabase/fix_families_rls.sql)
+      // that inserts the family + membership + updates the profile in one
+      // atomic server-side call. Doing this as 3 separate client-side
+      // inserts used to fail: the SELECT policy on `families` only allows
+      // rows where the caller's profile.family_id already matches — which
+      // it can't, the very first time, until the 3rd step runs. That
+      // produced the "new row violates row-level security policy" error.
+      // One RPC call instead of 3 round trips is also a lot faster.
+      const { data, error } = await supabase.rpc("create_family", { p_name: name });
       if (error) throw error;
-      await supabase.from("family_members").insert({ family_id: family.id, user_id: user!.id, role: "owner" });
-      await supabase.from("profiles").update({ family_id: family.id }).eq("id", user!.id);
-      return family;
+      return data?.[0];
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["family"] });
@@ -84,11 +89,9 @@ export default function FamilyPage() {
 
   const joinFamily = useMutation({
     mutationFn: async (code: string) => {
-      const { data: family, error } = await supabase.from("families").select("*").eq("invite_code", code.toUpperCase()).single();
-      if (error || !family) throw new Error("Семья не найдена");
-      await supabase.from("family_members").insert({ family_id: family.id, user_id: user!.id, role: "member" });
-      await supabase.from("profiles").update({ family_id: family.id }).eq("id", user!.id);
-      return family;
+      const { data, error } = await supabase.rpc("join_family", { p_invite_code: code });
+      if (error) throw error;
+      return data?.[0];
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["family"] });
